@@ -2,51 +2,150 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>小说目录</title>
+<title>小说阅读</title>
 
 <style>
+
 body{
-    font-family: serif;
-    max-width:800px;
-    margin:auto;
-    line-height:1.8;
+margin:0;
+font-family:serif;
+height:100vh;
+display:flex;
 }
 
-h1{
-    text-align:center;
+/* 左侧目录 */
+
+#sidebar{
+width:30%;
+min-width:200px;
+max-width:60%;
+overflow:auto;
+border-right:1px solid #ddd;
+padding:20px;
+background:#fafafa;
 }
+
+/* 右侧阅读 */
+
+#reader{
+flex:1;
+overflow:auto;
+padding:40px;
+font-size:18px;
+line-height:2;
+}
+
+/* 分隔拖动条 */
+
+#divider{
+width:5px;
+cursor:col-resize;
+background:#ddd;
+}
+
+#divider:hover{
+background:#888;
+}
+
+/* 章节 */
 
 .chapter{
-    display:block;
-    padding:10px;
-    border-bottom:1px solid #eee;
-    text-decoration:none;
-    color:#333;
+display:block;
+padding:8px;
+text-decoration:none;
+color:#333;
+border-bottom:1px solid #eee;
 }
 
 .chapter:hover{
-    background:#f5f5f5;
+background:#eaeaea;
 }
+
+.active{
+background:#d0e4ff;
+}
+
+/* 顶部导航 */
+
+#nav{
+margin-bottom:30px;
+}
+
+.navbtn{
+
+display:inline-block;
+padding:6px 16px;
+margin-right:10px;
+border-radius:6px;
+background:#f0f0f0;
+cursor:pointer;
+transition:0.2s;
+
+}
+
+.navbtn:hover{
+
+background:#4a8cff;
+color:white;
+
+}
+
 </style>
+
 </head>
 
 <body>
 
-<h1>小说目录</h1>
+<div id="sidebar">
+
+<h2>章节目录</h2>
 
 <div id="toc"></div>
 
+</div>
+
+<div id="divider"></div>
+
+<div id="reader">
+
+<div id="nav">
+
+<span class="navbtn" onclick="prev()">上一章</span>
+
+<span class="navbtn" onclick="next()">下一章</span>
+
+</div>
+
+<div id="content">加载中...</div>
+
+</div>
+
 <script>
 
-const repoAPI="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.io/contents/xiaoshuo/chapters"
+const api="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.io/contents/xiaoshuo/chapters"
 
-fetch(repoAPI)
+let chapters=[]
+let current=0
+
+/* 获取章节 */
+
+fetch(api)
 .then(r=>r.json())
 .then(files=>{
 
-let chapters=files
+chapters=files
 .filter(f=>f.name.endsWith(".txt"))
 .sort((a,b)=>a.name.localeCompare(b.name,'zh'))
+
+buildTOC()
+
+loadChapter(0)
+
+})
+
+/* 生成目录 */
+
+function buildTOC(){
 
 const toc=document.getElementById("toc")
 
@@ -56,17 +155,87 @@ let a=document.createElement("a")
 
 a.className="chapter"
 
-a.href="reader.html?c="+encodeURIComponent(file.download_url)
+a.innerText=(i+1)+" "+file.name.replace(".txt","")
 
-a.innerText=(i+1)+" - "+file.name.replace(".txt","")
+a.onclick=()=>loadChapter(i)
 
 toc.appendChild(a)
 
 })
 
+}
+
+/* 加载章节 */
+
+function loadChapter(i){
+
+current=i
+
+document.querySelectorAll(".chapter").forEach(x=>x.classList.remove("active"))
+
+document.querySelectorAll(".chapter")[i].classList.add("active")
+
+fetch(chapters[i].download_url)
+
+.then(r=>r.text())
+
+.then(t=>{
+
+document.getElementById("content").innerText=t
+
+window.scrollTo(0,0)
+
 })
+
+}
+
+/* 上一章 */
+
+function prev(){
+
+if(current>0){
+
+loadChapter(current-1)
+
+}
+
+}
+
+/* 下一章 */
+
+function next(){
+
+if(current<chapters.length-1){
+
+loadChapter(current+1)
+
+}
+
+}
+
+/* 拖动调整宽度 */
+
+const divider=document.getElementById("divider")
+const sidebar=document.getElementById("sidebar")
+
+let dragging=false
+
+divider.onmousedown=()=>dragging=true
+
+document.onmouseup=()=>dragging=false
+
+document.onmousemove=(e)=>{
+
+if(!dragging)return
+
+let percent=e.clientX/window.innerWidth*100
+
+sidebar.style.width=percent+"%"
+
+}
 
 </script>
 
 </body>
+
 </html>
