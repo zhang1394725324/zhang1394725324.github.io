@@ -23,6 +23,7 @@ body{
   border-right:1px solid #ddd;
   padding:20px;
   background:#fafafa;
+  position:relative;
 }
 
 /* 右侧阅读器 */
@@ -44,12 +45,17 @@ body{
   background:#888;
 }
 
-/* 章节目录样式 */
+/* 卷/章节目录样式 */
 .volume{
   font-weight:bold;
   cursor:pointer;
   padding:6px 0;
   margin-top:10px;
+  border-radius:4px;
+  transition:0.2s;
+}
+.volume:hover{
+  background:#d0e4ff;
 }
 .chapter{
   display:block;
@@ -62,8 +68,14 @@ body{
   background:#eaeaea;
 }
 .active{
-  background:#d0e4ff;
+  background:#4a8cff;
+  color:white !important;
 }
+
+/* 不同卷颜色区分 */
+.volume:nth-child(3n+1){background:#ffe4e1;}
+.volume:nth-child(3n+2){background:#e0ffff;}
+.volume:nth-child(3n+3){background:#f0fff0;}
 
 /* 阅读器顶部导航 */
 #nav{
@@ -112,7 +124,7 @@ body{
 </head>
 <body>
 
-<!-- 左侧章节目录 -->
+<!-- 左侧目录 -->
 <div id="sidebar">
 <h2>目录</h2>
 <div id="toc"></div>
@@ -133,61 +145,56 @@ body{
 </div>
 
 <script>
-// GitHub API 地址
+// GitHub API地址（根目录的 chapters 文件夹）
 const api="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.io/contents/xiaoshuo/chapters";
 
 let chapters=[];
 let current=0;
+let tocData=[]; // [{volume:'第一卷', chapters:[{name, index}]}]
 
-// 卷信息
-let volumes={}; // {卷名:[章节索引,...]}
-let tocData=[]; // [{volume:"第一卷", chapters:[{name, index}]}]
-
-// 自动读取章节列表
+// 读取卷文件夹列表
 fetch(api)
 .then(r=>r.json())
-.then(files=>{
-  // 过滤txt并按名字排序
-  chapters=files.filter(f=>f.name.endsWith(".txt"))
-                .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+.then(items=>{
+  const volumeDirs = items.filter(f=>f.type==="dir"); // 卷文件夹
+  let count=0;
+  // 遍历每个卷
+  volumeDirs.forEach((vol,idx)=>{
+    fetch(vol.url) // GitHub API 文件夹内容
+      .then(r=>r.json())
+      .then(files=>{
+        // 过滤txt并排序
+        let volChapters=files.filter(f=>f.name.endsWith(".txt"))
+          .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
 
-  // 根据文件名生成卷信息
-  tocData=[];
-  let currentVolume="";
-  chapters.forEach((f,i)=>{
-    let parts=f.name.split("_"); // 假设文件名格式: 第一卷-001.txt 或 第二卷-002.txt
-    let volName=parts[0] || "卷";
-    if(!volumes[volName]) volumes[volName]=[];
-    volumes[volName].push(i);
+        // 记录章节全局索引
+        let chapIndices=[];
+        volChapters.forEach(f=>{
+          chapters.push(f);
+          chapIndices.push(chapters.length-1);
+        });
+
+        tocData.push({volume:vol.name, chapters:chapIndices.map(i=>({name:chapters[i].name.replace(".txt",""), index:i}))});
+
+        count++;
+        if(count===volumeDirs.length) buildTOC(); // 所有卷读取完成
+      });
   });
-
-  // 构造tocData
-  for(let vol in volumes){
-    let chArr=volumes[vol].map(idx=>({name:chapters[idx].name.replace(".txt",""), index:idx}));
-    tocData.push({volume:vol, chapters:chArr});
-  }
-
-  buildTOC();
-
-  // 页面加载时恢复上次章节
-  const last=localStorage.getItem("currentChapter");
-  if(last!==null && chapters[last]) loadChapter(parseInt(last));
-  else loadChapter(0);
 });
 
 // 构建目录
 function buildTOC(){
   const toc=document.getElementById("toc");
   toc.innerHTML="";
-  tocData.forEach(v=>{
+  tocData.forEach((v,vi)=>{
     const volDiv=document.createElement("div");
     volDiv.className="volume";
     volDiv.innerText=v.volume;
-    volDiv.onclick=()=>{ 
+    volDiv.onclick=()=>{
       const sub=volDiv.nextSibling;
       if(sub.style.display==="none") sub.style.display="block";
       else sub.style.display="none";
-    }
+    };
     toc.appendChild(volDiv);
 
     const chapDiv=document.createElement("div");
@@ -196,11 +203,17 @@ function buildTOC(){
       const a=document.createElement("a");
       a.className="chapter";
       a.innerText=c.name;
+      a.style.paddingLeft="32px"; // 多级缩进
       a.onclick=()=>loadChapter(c.index);
       chapDiv.appendChild(a);
     });
     toc.appendChild(chapDiv);
   });
+
+  // 恢复上次阅读章节
+  const last=localStorage.getItem("currentChapter");
+  if(last!==null && chapters[last]) loadChapter(parseInt(last));
+  else loadChapter(0);
 }
 
 // 加载章节
@@ -231,7 +244,6 @@ function renderContent(text){
   const content=lines.slice(1).join("\n");
   document.getElementById("content").innerHTML=
     "<h2>"+title+"</h2><p>"+content.replace(/\n/g,"<br>")+"</p>";
-
   const scrolls=localStorage.getItem("scrollPos_"+current);
   window.scrollTo(0,scrolls?parseInt(scrolls):0);
 }
@@ -276,6 +288,5 @@ document.onmousemove=(e)=>{
   sidebar.style.width=percent+"%";
 }
 </script>
-
 </body>
 </html>
