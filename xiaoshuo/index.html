@@ -238,15 +238,39 @@ function loadChapter(i){
 }
 
 // 渲染章节
+<!-- 替换原 renderContent 函数 -->
+
 function renderContent(text){
   const lines=text.split("\n");
-  const title=lines[0];
+  const title=lines[0] || "章节标题";
   const content=lines.slice(1).join("\n");
-  document.getElementById("content").innerHTML=
-    "<h2>"+title+"</h2><p>"+content.replace(/\n/g,"<br>")+"</p>";
+
+  // 假数据示例（你可以根据实际情况替换）
+  const readCount = Math.floor(Math.random()*1000); // 阅读进度
+  const author = "神之共犯";
+  const category = "汐尺";
+  const wordCount = content.length;
+  const updateTime = "2026-02-23 12:48";
+
+  document.getElementById("content").innerHTML=`
+    <div style="margin-bottom:16px;">
+      <h2 style="display:inline-block; font-size:24px; font-weight:bold; margin:0;">${title}</h2>
+      <span style="display:inline-block; background:#eee; color:#333; padding:2px 6px; margin-left:10px; font-size:14px; border-radius:4px;">${readCount}</span>
+    </div>
+    <div style="margin-bottom:20px; color:#888; font-size:14px;">
+      <span style="margin-right:12px;">📖 ${author}</span>
+      <span style="margin-right:12px;">🖋️ ${category}</span>
+      <span style="margin-right:12px;">📝 ${wordCount}字</span>
+      <span style="margin-right:12px;">⏰ ${updateTime}</span>
+    </div>
+    <p style="line-height:2; font-size:18px;">${content.replace(/\n/g,"<br>")}</p>
+  `;
+
+  // 恢复滚动位置
   const scrolls=localStorage.getItem("scrollPos_"+current);
   window.scrollTo(0,scrolls?parseInt(scrolls):0);
 }
+
 
 // 上一章/下一章
 function prev(){if(current>0) loadChapter(current-1);}
