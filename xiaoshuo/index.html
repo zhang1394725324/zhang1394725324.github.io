@@ -2,240 +2,235 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>小说阅读</title>
+<title>小说阅读器</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-
+/* 全局布局 */
 body{
-margin:0;
-font-family:serif;
-height:100vh;
-display:flex;
+  margin:0;
+  font-family: "宋体", serif;
+  height:100vh;
+  display:flex;
+  transition: background 0.3s, color 0.3s;
 }
 
 /* 左侧目录 */
-
 #sidebar{
-width:30%;
-min-width:200px;
-max-width:60%;
-overflow:auto;
-border-right:1px solid #ddd;
-padding:20px;
-background:#fafafa;
+  width:30%;
+  min-width:200px;
+  max-width:60%;
+  overflow:auto;
+  border-right:1px solid #ddd;
+  padding:20px;
+  background:#fafafa;
 }
 
-/* 右侧阅读 */
-
+/* 右侧阅读器 */
 #reader{
-flex:1;
-overflow:auto;
-padding:40px;
-font-size:18px;
-line-height:2;
+  flex:1;
+  overflow:auto;
+  padding:40px;
+  font-size:18px;
+  line-height:2;
 }
 
 /* 分隔拖动条 */
-
 #divider{
-width:5px;
-cursor:col-resize;
-background:#ddd;
+  width:5px;
+  cursor:col-resize;
+  background:#ddd;
 }
-
 #divider:hover{
-background:#888;
+  background:#888;
 }
 
-/* 章节 */
-
+/* 章节目录样式 */
 .chapter{
-display:block;
-padding:8px;
-text-decoration:none;
-color:#333;
-border-bottom:1px solid #eee;
+  display:block;
+  padding:8px;
+  text-decoration:none;
+  color:#333;
+  border-bottom:1px solid #eee;
 }
-
 .chapter:hover{
-background:#eaeaea;
+  background:#eaeaea;
 }
-
 .active{
-background:#d0e4ff;
+  background:#d0e4ff;
 }
 
-/* 顶部导航 */
-
+/* 阅读器顶部导航 */
 #nav{
-margin-bottom:30px;
+  margin-bottom:30px;
+  position:sticky;
+  top:0;
+  background:inherit;
+  padding-bottom:10px;
+  z-index:100;
 }
-
 .navbtn{
-
-display:inline-block;
-padding:6px 16px;
-margin-right:10px;
-border-radius:6px;
-background:#f0f0f0;
-cursor:pointer;
-transition:0.2s;
-
+  display:inline-block;
+  padding:6px 16px;
+  margin-right:10px;
+  border-radius:6px;
+  background:#f0f0f0;
+  cursor:pointer;
+  transition:0.2s;
 }
-
 .navbtn:hover{
-
-background:#4a8cff;
-color:white;
-
+  background:#4a8cff;
+  color:white;
 }
 
+/* 夜间模式 */
+.night{
+  background:#111;
+  color:#eee;
+}
+.night .navbtn{
+  background:#333;
+}
+.night .navbtn:hover{
+  background:#4a8cff;
+  color:white;
+}
+
+/* 手机适配 */
+@media (max-width:800px){
+  body{flex-direction:column;}
+  #sidebar{width:100%; max-height:200px; border-right:none; border-bottom:1px solid #ddd;}
+  #reader{padding:20px;}
+  #divider{display:none;}
+}
 </style>
-
 </head>
-
 <body>
 
+<!-- 左侧章节目录 -->
 <div id="sidebar">
-
 <h2>章节目录</h2>
-
 <div id="toc"></div>
-
 </div>
 
 <div id="divider"></div>
 
+<!-- 右侧阅读器 -->
 <div id="reader">
-
 <div id="nav">
-
 <span class="navbtn" onclick="prev()">上一章</span>
-
 <span class="navbtn" onclick="next()">下一章</span>
-
+<span class="navbtn" id="nightmode">夜间模式</span>
 </div>
-
 <div id="content">加载中...</div>
-
 </div>
 
 <script>
+// GitHub API 地址
+const api="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.io/contents/xiaoshuo/chapters";
 
-const api="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.io/contents/xiaoshuo/chapters"
+let chapters=[];
+let current=0;
 
-let chapters=[]
-let current=0
-
-/* 获取章节 */
-
+// 自动读取章节列表
 fetch(api)
 .then(r=>r.json())
 .then(files=>{
+  chapters=files
+    .filter(f=>f.name.endsWith(".txt"))
+    .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+  buildTOC();
+  
+  // 页面加载时恢复上次章节
+  const last=localStorage.getItem("currentChapter");
+  if(last!==null && chapters[last]) loadChapter(parseInt(last));
+  else loadChapter(0);
+});
 
-chapters=files
-.filter(f=>f.name.endsWith(".txt"))
-.sort((a,b)=>a.name.localeCompare(b.name,'zh'))
-
-buildTOC()
-
-loadChapter(0)
-
-})
-
-/* 生成目录 */
-
+// 构建章节目录
 function buildTOC(){
-
-const toc=document.getElementById("toc")
-
-chapters.forEach((file,i)=>{
-
-let a=document.createElement("a")
-
-a.className="chapter"
-
-a.innerText=(i+1)+" "+file.name.replace(".txt","")
-
-a.onclick=()=>loadChapter(i)
-
-toc.appendChild(a)
-
-})
-
+  const toc=document.getElementById("toc");
+  chapters.forEach((file,i)=>{
+    let a=document.createElement("a");
+    a.className="chapter";
+    a.innerText=(i+1)+" "+file.name.replace(".txt","");
+    a.onclick=()=>loadChapter(i);
+    toc.appendChild(a);
+  });
 }
 
-/* 加载章节 */
-
+// 加载章节内容，第一行作为标题
 function loadChapter(i){
+  current=i;
+  localStorage.setItem("currentChapter",i);
 
-current=i
+  document.querySelectorAll(".chapter").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".chapter")[i].classList.add("active");
 
-document.querySelectorAll(".chapter").forEach(x=>x.classList.remove("active"))
+  // 如果有缓存，直接用
+  if(chapters[i].contentCache){
+    renderContent(chapters[i].contentCache);
+    return;
+  }
 
-document.querySelectorAll(".chapter")[i].classList.add("active")
-
-fetch(chapters[i].download_url)
-
-.then(r=>r.text())
-
-.then(t=>{
-
-document.getElementById("content").innerText=t
-
-window.scrollTo(0,0)
-
-})
-
+  fetch(chapters[i].download_url)
+  .then(r=>r.text())
+  .then(t=>{
+    chapters[i].contentCache=t; // 缓存章节
+    renderContent(t);
+  });
 }
 
-/* 上一章 */
+// 渲染章节
+function renderContent(text){
+  const lines=text.split("\n");
+  const title=lines[0];
+  const content=lines.slice(1).join("\n");
+  document.getElementById("content").innerHTML=
+    "<h2>"+title+"</h2><p>"+content.replace(/\n/g,"<br>")+"</p>";
 
-function prev(){
-
-if(current>0){
-
-loadChapter(current-1)
-
+  // 恢复滚动位置
+  const scrolls=localStorage.getItem("scrollPos_"+current);
+  window.scrollTo(0,scrolls?parseInt(scrolls):0);
 }
 
-}
+// 上一章
+function prev(){if(current>0) loadChapter(current-1);}
+// 下一章
+function next(){if(current<chapters.length-1) loadChapter(current+1);}
 
-/* 下一章 */
+// 保存滚动位置
+document.getElementById("reader").addEventListener("scroll",()=>{
+  localStorage.setItem("scrollPos_"+current,document.getElementById("reader").scrollTop);
+});
 
-function next(){
+// 夜间模式
+const nightBtn=document.getElementById("nightmode");
+nightBtn.onclick=()=>{
+  document.body.classList.toggle("night");
+  localStorage.setItem("night",document.body.classList.contains("night"));
+};
+// 页面加载恢复夜间模式
+if(localStorage.getItem("night")==="true") document.body.classList.add("night");
 
-if(current<chapters.length-1){
+// 键盘翻页
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowLeft") prev();
+  if(e.key==="ArrowRight") next();
+});
 
-loadChapter(current+1)
-
-}
-
-}
-
-/* 拖动调整宽度 */
-
-const divider=document.getElementById("divider")
-const sidebar=document.getElementById("sidebar")
-
-let dragging=false
-
-divider.onmousedown=()=>dragging=true
-
-document.onmouseup=()=>dragging=false
-
+// 拖动调整宽度
+const divider=document.getElementById("divider");
+const sidebar=document.getElementById("sidebar");
+let dragging=false;
+divider.onmousedown=()=>dragging=true;
+document.onmouseup=()=>dragging=false;
 document.onmousemove=(e)=>{
-
-if(!dragging)return
-
-let percent=e.clientX/window.innerWidth*100
-
-sidebar.style.width=percent+"%"
-
+  if(!dragging) return;
+  let percent=e.clientX/window.innerWidth*100;
+  sidebar.style.width=percent+"%";
 }
-
 </script>
 
 </body>
-
 </html>
