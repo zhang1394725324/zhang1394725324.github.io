@@ -16,9 +16,9 @@ body{
 
 /* 左侧目录 */
 #sidebar{
-  width:30%;
+  width:25%;
   min-width:200px;
-  max-width:30%;
+  max-width:60%;
   overflow:auto;
   border-right:1px solid #ddd;
   padding:20px;
@@ -158,16 +158,13 @@ fetch(api)
 .then(items=>{
   const volumeDirs = items.filter(f=>f.type==="dir"); // 卷文件夹
   let count=0;
-  // 遍历每个卷
   volumeDirs.forEach((vol,idx)=>{
-    fetch(vol.url) // GitHub API 文件夹内容
+    fetch(vol.url)
       .then(r=>r.json())
       .then(files=>{
-        // 过滤txt并排序
         let volChapters=files.filter(f=>f.name.endsWith(".txt"))
           .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
 
-        // 记录章节全局索引
         let chapIndices=[];
         volChapters.forEach(f=>{
           chapters.push(f);
@@ -177,7 +174,7 @@ fetch(api)
         tocData.push({volume:vol.name, chapters:chapIndices.map(i=>({name:chapters[i].name.replace(".txt",""), index:i}))});
 
         count++;
-        if(count===volumeDirs.length) buildTOC(); // 所有卷读取完成
+        if(count===volumeDirs.length) buildTOC();
       });
   });
 });
@@ -238,39 +235,35 @@ function loadChapter(i){
 }
 
 // 渲染章节
-<!-- 替换原 renderContent 函数 -->
-
 function renderContent(text){
   const lines=text.split("\n");
   const title=lines[0] || "章节标题";
   const content=lines.slice(1).join("\n");
 
-  // 假数据示例（你可以根据实际情况替换）
-  const readCount = Math.floor(Math.random()*1000); // 阅读进度
+  // 使用你的实际信息
   const author = "神之共犯";
   const category = "汐尺";
-  const wordCount = content.length;
+  const wordCount = 1638;
   const updateTime = "2026-02-23 12:48";
+  const readCount = 304;
 
   document.getElementById("content").innerHTML=`
-    <div style="margin-bottom:16px;">
+    <div style="margin-bottom:8px;">
       <h2 style="display:inline-block; font-size:24px; font-weight:bold; margin:0;">${title}</h2>
       <span style="display:inline-block; background:#eee; color:#333; padding:2px 6px; margin-left:10px; font-size:14px; border-radius:4px;">${readCount}</span>
     </div>
     <div style="margin-bottom:20px; color:#888; font-size:14px;">
       <span style="margin-right:12px;">📖 ${author}</span>
-      <span style="margin-right:12px;">🖋️ ${category}</span>
+      <span style="margin-right:12px;">✏️ ${category}</span>
       <span style="margin-right:12px;">📝 ${wordCount}字</span>
       <span style="margin-right:12px;">⏰ ${updateTime}</span>
     </div>
     <p style="line-height:2; font-size:18px;">${content.replace(/\n/g,"<br>")}</p>
   `;
 
-  // 恢复滚动位置
   const scrolls=localStorage.getItem("scrollPos_"+current);
   window.scrollTo(0,scrolls?parseInt(scrolls):0);
 }
-
 
 // 上一章/下一章
 function prev(){if(current>0) loadChapter(current-1);}
