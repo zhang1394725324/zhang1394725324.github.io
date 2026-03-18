@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>阅读</title>
+
+<style>
+
+body{
+max-width:800px;
+margin:auto;
+font-family:serif;
+line-height:2;
+font-size:18px;
+padding:40px;
+}
+
+#nav{
+margin-bottom:30px;
+}
+
+button{
+padding:8px 20px;
+margin-right:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="nav">
+
+<button onclick="prev()">上一章</button>
+
+<a href="index.html">目录</a>
+
+<button onclick="next()">下一章</button>
+
+</div>
+
+<div id="content"></div>
+
+<script>
+
+const repoAPI="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.io/contents/xiaoshuo/chapters"
+
+let chapters=[]
+let current=0
+
+fetch(repoAPI)
+.then(r=>r.json())
+.then(files=>{
+
+chapters=files
+.filter(f=>f.name.endsWith(".txt"))
+.sort((a,b)=>a.name.localeCompare(b.name,'zh'))
+
+const url=new URL(location.href)
+
+const c=url.searchParams.get("c")
+
+current=chapters.findIndex(x=>x.download_url==c)
+
+load()
+
+})
+
+function load(){
+
+fetch(chapters[current].download_url)
+.then(r=>r.text())
+.then(t=>{
+
+document.getElementById("content").innerText=t
+
+})
+
+}
+
+function prev(){
+
+if(current>0){
+
+current--
+
+load()
+
+}
+
+}
+
+function next(){
+
+if(current<chapters.length-1){
+
+current++
+
+load()
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
