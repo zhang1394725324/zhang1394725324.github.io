@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <title>小说阅读器</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <style>
 /* 全局布局 */
 body{
@@ -46,9 +45,15 @@ body{
 }
 
 /* 章节目录样式 */
+.volume{
+  font-weight:bold;
+  cursor:pointer;
+  padding:6px 0;
+  margin-top:10px;
+}
 .chapter{
   display:block;
-  padding:8px;
+  padding:6px 16px;
   text-decoration:none;
   color:#333;
   border-bottom:1px solid #eee;
@@ -109,7 +114,7 @@ body{
 
 <!-- 左侧章节目录 -->
 <div id="sidebar">
-<h2>章节目录</h2>
+<h2>目录</h2>
 <div id="toc"></div>
 </div>
 
@@ -121,6 +126,8 @@ body{
 <span class="navbtn" onclick="prev()">上一章</span>
 <span class="navbtn" onclick="next()">下一章</span>
 <span class="navbtn" id="nightmode">夜间模式</span>
+<span class="navbtn" id="increase">A+</span>
+<span class="navbtn" id="decrease">A-</span>
 </div>
 <div id="content">加载中...</div>
 </div>
@@ -132,34 +139,71 @@ const api="https://api.github.com/repos/zhang1394725324/zhang1394725324.github.i
 let chapters=[];
 let current=0;
 
+// 卷信息
+let volumes={}; // {卷名:[章节索引,...]}
+let tocData=[]; // [{volume:"第一卷", chapters:[{name, index}]}]
+
 // 自动读取章节列表
 fetch(api)
 .then(r=>r.json())
 .then(files=>{
-  chapters=files
-    .filter(f=>f.name.endsWith(".txt"))
-    .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+  // 过滤txt并按名字排序
+  chapters=files.filter(f=>f.name.endsWith(".txt"))
+                .sort((a,b)=>a.name.localeCompare(b.name,'zh'));
+
+  // 根据文件名生成卷信息
+  tocData=[];
+  let currentVolume="";
+  chapters.forEach((f,i)=>{
+    let parts=f.name.split("_"); // 假设文件名格式: 第一卷-001.txt 或 第二卷-002.txt
+    let volName=parts[0] || "卷";
+    if(!volumes[volName]) volumes[volName]=[];
+    volumes[volName].push(i);
+  });
+
+  // 构造tocData
+  for(let vol in volumes){
+    let chArr=volumes[vol].map(idx=>({name:chapters[idx].name.replace(".txt",""), index:idx}));
+    tocData.push({volume:vol, chapters:chArr});
+  }
+
   buildTOC();
-  
+
   // 页面加载时恢复上次章节
   const last=localStorage.getItem("currentChapter");
   if(last!==null && chapters[last]) loadChapter(parseInt(last));
   else loadChapter(0);
 });
 
-// 构建章节目录
+// 构建目录
 function buildTOC(){
   const toc=document.getElementById("toc");
-  chapters.forEach((file,i)=>{
-    let a=document.createElement("a");
-    a.className="chapter";
-    a.innerText=(i+1)+" "+file.name.replace(".txt","");
-    a.onclick=()=>loadChapter(i);
-    toc.appendChild(a);
+  toc.innerHTML="";
+  tocData.forEach(v=>{
+    const volDiv=document.createElement("div");
+    volDiv.className="volume";
+    volDiv.innerText=v.volume;
+    volDiv.onclick=()=>{ 
+      const sub=volDiv.nextSibling;
+      if(sub.style.display==="none") sub.style.display="block";
+      else sub.style.display="none";
+    }
+    toc.appendChild(volDiv);
+
+    const chapDiv=document.createElement("div");
+    chapDiv.style.display="block";
+    v.chapters.forEach(c=>{
+      const a=document.createElement("a");
+      a.className="chapter";
+      a.innerText=c.name;
+      a.onclick=()=>loadChapter(c.index);
+      chapDiv.appendChild(a);
+    });
+    toc.appendChild(chapDiv);
   });
 }
 
-// 加载章节内容，第一行作为标题
+// 加载章节
 function loadChapter(i){
   current=i;
   localStorage.setItem("currentChapter",i);
@@ -167,7 +211,6 @@ function loadChapter(i){
   document.querySelectorAll(".chapter").forEach(x=>x.classList.remove("active"));
   document.querySelectorAll(".chapter")[i].classList.add("active");
 
-  // 如果有缓存，直接用
   if(chapters[i].contentCache){
     renderContent(chapters[i].contentCache);
     return;
@@ -176,7 +219,7 @@ function loadChapter(i){
   fetch(chapters[i].download_url)
   .then(r=>r.text())
   .then(t=>{
-    chapters[i].contentCache=t; // 缓存章节
+    chapters[i].contentCache=t;
     renderContent(t);
   });
 }
@@ -189,14 +232,12 @@ function renderContent(text){
   document.getElementById("content").innerHTML=
     "<h2>"+title+"</h2><p>"+content.replace(/\n/g,"<br>")+"</p>";
 
-  // 恢复滚动位置
   const scrolls=localStorage.getItem("scrollPos_"+current);
   window.scrollTo(0,scrolls?parseInt(scrolls):0);
 }
 
-// 上一章
+// 上一章/下一章
 function prev(){if(current>0) loadChapter(current-1);}
-// 下一章
 function next(){if(current<chapters.length-1) loadChapter(current+1);}
 
 // 保存滚动位置
@@ -210,8 +251,12 @@ nightBtn.onclick=()=>{
   document.body.classList.toggle("night");
   localStorage.setItem("night",document.body.classList.contains("night"));
 };
-// 页面加载恢复夜间模式
 if(localStorage.getItem("night")==="true") document.body.classList.add("night");
+
+// 字号调节
+const readerDiv=document.getElementById("reader");
+document.getElementById("increase").onclick=()=>readerDiv.style.fontSize=(parseInt(getComputedStyle(readerDiv).fontSize)+2)+"px";
+document.getElementById("decrease").onclick=()=>readerDiv.style.fontSize=(parseInt(getComputedStyle(readerDiv).fontSize)-2)+"px";
 
 // 键盘翻页
 document.addEventListener("keydown",e=>{
