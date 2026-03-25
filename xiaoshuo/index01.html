@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>小说阅读器</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+margin:0;
+font-family:"宋体",serif;
+height:100vh;
+display:flex;
+transition:.3s;
+}
+
+/* 目录 */
+
+#sidebar{
+width:25%;
+min-width:200px;
+background:#fafafa;
+border-right:1px solid #ddd;
+overflow:auto;
+padding:20px;
+}
+
+#divider{
+width:5px;
+cursor:col-resize;
+background:#ddd;
+}
+
+#reader{
+flex:1;
+padding:40px;
+overflow:auto;
+line-height:2;
+font-size:18px;
+}
+
+/* 卷 */
+
+.volume{
+font-weight:bold;
+padding:8px;
+margin-top:10px;
+cursor:pointer;
+border-radius:6px;
+}
+
+.volume:nth-child(3n+1){background:#ffe4e1}
+.volume:nth-child(3n+2){background:#e0ffff}
+.volume:nth-child(3n+3){background:#f0fff0}
+
+/* 章节 */
+
+.chapter{
+padding:6px 20px;
+cursor:pointer;
+}
+
+.chapter:hover{
+background:#eee;
+}
+
+.active{
+background:#4a8cff;
+color:white;
+}
+
+/* 顶部按钮 */
+
+.btn{
+padding:6px 14px;
+background:#eee;
+margin-right:10px;
+cursor:pointer;
+border-radius:6px;
+}
+
+.btn:hover{
+background:#4a8cff;
+color:white;
+}
+
+/* 夜间 */
+
+.night{
+background:#111;
+color:#eee;
+}
+
+.night .btn{
+background:#333;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="sidebar">
+<h2 id="bookTitle">小说目录</h2>
+<div id="toc"></div>
+</div>
+
+<div id="divider"></div>
+
+<div id="reader">
+
+<div>
+
+<span class="btn" onclick="prev()">上一章</span>
+<span class="btn" onclick="next()">下一章</span>
+<span class="btn" onclick="toggleNight()">夜间模式</span>
+<span class="btn" onclick="fontUp()">A+</span>
+<span class="btn" onclick="fontDown()">A-</span>
+
+</div>
+
+<div id="content">加载中...</div>
+
+</div>
+
+<script>
+
+const txtUrl="novel.txt"
+
+let chapters=[]
+let current=0
+
+let bookName=""
+let authorName=""
+let lastUpdate=""
+
+fetch(txtUrl)
+.then(r=>{
+lastUpdate=r.headers.get("last-modified")
+return r.text()
+})
+.then(text=>parseNovel(text))
+
+function parseNovel(text){
+
+let lines=text.split("\n")
+
+let volume="未分类"
+let title=""
+let content=""
+
+lines.forEach(line=>{
+
+line=line.trim()
+
+if(line.startsWith("书名：")){
+bookName=line.replace("书名：","")
+document.getElementById("bookTitle").innerText=bookName
+}
+
+else if(line.startsWith("作者：")){
+authorName=line.replace("作者：","")
+}
+
+else if(line.match(/^第.*卷/)){
+volume=line
+}
+
+else if(line.match(/^第.*章/)){
+
+if(title){
+chapters.push({
+volume,
+title,
+content
+})
+}
+
+title=line
+content=""
+}
+
+else{
+content+=line+"\n"
+}
+
+})
+
+chapters.push({volume,title,content})
+
+buildTOC()
+loadChapter(0)
+
+}
+
+function buildTOC(){
+
+let toc=document.getElementById("toc")
+
+let lastVol=""
+
+chapters.forEach((c,i)=>{
+
+if(c.volume!=lastVol){
+
+let v=document.createElement("div")
+v.className="volume"
+v.innerText=c.volume
+
+let list=document.createElement("div")
+
+v.onclick=()=>{
+list.style.display=
+list.style.display=="none"?"block":"none"
+}
+
+toc.appendChild(v)
+toc.appendChild(list)
+
+lastVol=c.volume
+}
+
+let a=document.createElement("div")
+a.className="chapter"
+a.innerText=c.title
+a.onclick=()=>loadChapter(i)
+
+toc.lastChild.appendChild(a)
+
+})
+
+}
+
+function loadChapter(i){
+
+current=i
+
+document.querySelectorAll(".chapter")
+.forEach(e=>e.classList.remove("active"))
+
+document.querySelectorAll(".chapter")[i]
+.classList.add("active")
+
+let c=chapters[i]
+
+let wordCount=c.content.replace(/\s/g,"").length
+
+document.getElementById("content").innerHTML=`
+
+<h2>${c.title}</h2>
+
+<div style="color:#888;margin-bottom:20px">
+
+📖 ${bookName}  
+✏️ ${authorName}  
+📝 ${wordCount}字  
+⏰ ${formatTime(lastUpdate)}
+
+</div>
+
+${c.content.replace(/\n/g,"<br>")}
+
+`
+
+}
+
+function formatTime(t){
+
+if(!t) return ""
+
+let d=new Date(t)
+
+return d.getFullYear()+"-"+ 
+(d.getMonth()+1).toString().padStart(2,"0")+"-"+ 
+d.getDate().toString().padStart(2,"0")+" "+
+d.getHours().toString().padStart(2,"0")+":"+
+d.getMinutes().toString().padStart(2,"0")
+
+}
+
+function prev(){
+if(current>0)loadChapter(current-1)
+}
+
+function next(){
+if(current<chapters.length-1)loadChapter(current+1)
+}
+
+function toggleNight(){
+document.body.classList.toggle("night")
+}
+
+function fontUp(){
+let size=parseInt(getComputedStyle(reader).fontSize)
+reader.style.fontSize=size+2+"px"
+}
+
+function fontDown(){
+let size=parseInt(getComputedStyle(reader).fontSize)
+reader.style.fontSize=size-2+"px"
+}
+
+/* 拖动 */
+
+let dragging=false
+
+divider.onmousedown=()=>dragging=true
+document.onmouseup=()=>dragging=false
+
+document.onmousemove=e=>{
+if(!dragging)return
+sidebar.style.width=
+e.clientX/window.innerWidth*100+"%"
+}
+
+</script>
+
+</body>
+</html>
